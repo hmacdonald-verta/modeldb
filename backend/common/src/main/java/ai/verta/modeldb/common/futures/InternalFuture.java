@@ -18,11 +18,11 @@ public class InternalFuture<T> {
 
   public static <T> InternalFuture<List<T>> sequence(final List<InternalFuture<T>> futures) {
     var completableFuture =
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]))
+            CompletableFuture.allOf(futures.stream().map(f -> f.stage.toCompletableFuture()).toArray(CompletableFuture[]::new))
                     .thenApply(
                             unit ->
                                     futures.stream()
-                                            .map(f -> f.stage.toCompletableFuture().join())
+                                            .map(InternalFuture::join)
                                             .collect(Collectors.toList()));
     return InternalFuture.from(completableFuture);
   }
@@ -37,6 +37,10 @@ public class InternalFuture<T> {
     var ret = new InternalFuture<R>();
     ret.stage = CompletableFuture.completedFuture(value);
     return ret;
+  }
+
+  public T join() {
+    return stage.toCompletableFuture().join();
   }
 
   public <U> InternalFuture<U> thenCompose(
